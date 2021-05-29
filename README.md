@@ -60,7 +60,7 @@ Available options are:
     See the [SASS_REFERENCE](https://sass-lang.com/documentation/cli/dart-sass#style)
     for details.
 
-    Defaults to `compact`.
+    Defaults to `expanded`.
 
   * **`sass_dir`**
 

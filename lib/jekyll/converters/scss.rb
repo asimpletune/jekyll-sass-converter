@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "sass"
 require "sassc"
 require "jekyll/utils"
 require "jekyll/source_map_page"
@@ -114,8 +115,8 @@ module Jekyll
       end
 
       def sass_style
-        style = jekyll_sass_configuration.fetch("style", :compact)
-        ALLOWED_STYLES.include?(style.to_s) ? style.to_sym : :compact
+        style = jekyll_sass_configuration.fetch("style", :expanded)
+        ALLOWED_STYLES.include?(style.to_s) ? style.to_sym : :expanded
       end
 
       def user_sass_load_paths
@@ -179,14 +180,47 @@ module Jekyll
         )
       end
 
+      def sass_embedded_config(data)
+        {
+          :data                => data,
+          :file                => filename,
+          :indented_syntax     => syntax == :sass,
+          :include_paths       => sass_load_paths,
+          :output_style        => sass_style,
+          :source_map          => sourcemap_required?,
+          :out_file            => output_path,
+          :omit_source_map_url => !sourcemap_required?,
+          :source_map_contents => true,
+        }
+      end
+
       def convert(content)
+        if jekyll_sass_configuration["implementation"] == "sass-embedded"
+          sass_embedded_convert(content)
+        else
+          sass_convert(content)
+        end
+      end
+
+      def sass_convert(content)
         config = sass_configs
         engine = SassC::Engine.new(content.dup, config)
         output = engine.render
-        generate_source_map(engine) if sourcemap_required?
+        sass_generate_source_map(engine) if sourcemap_required?
         replacement = add_charset? ? '@charset "UTF-8";' : ""
         output.sub(BYTE_ORDER_MARK, replacement)
       rescue SassC::SyntaxError => e
+        raise SyntaxError, e.to_s
+      end
+
+      def sass_embedded_convert(content)
+        output = ::Sass.render(**sass_embedded_config(content))
+        sass_embedded_generate_source_map(output.map) if sourcemap_required?
+        replacement = add_charset? ? '@charset "UTF-8";' : ""
+        eof = sourcemap_required? ? "" : "\n"
+        output.css.sub(BYTE_ORDER_MARK, replacement) + eof
+      rescue ::Sass::RenderError => e
+        Jekyll.logger.warn e.formatted
         raise SyntaxError, e.to_s
       end
 
@@ -266,13 +300,20 @@ module Jekyll
       # Reads the source-map from the engine and adds it to the source-map-page.
       #
       # @param [::SassC::Engine] engine The sass Compiler engine.
-      def generate_source_map(engine)
+      def sass_generate_source_map(engine)
         return if associate_page_failed?
 
         source_map_page.source_map(engine.source_map)
         site.pages << source_map_page
       rescue ::SassC::NotRenderedError => e
         Jekyll.logger.warn "Could not generate source map #{e.message} => #{e.cause}"
+      end
+
+      def sass_embedded_generate_source_map(source_map)
+        return if associate_page_failed?
+
+        source_map_page.source_map(source_map)
+        site.pages << source_map_page
       end
 
       def site

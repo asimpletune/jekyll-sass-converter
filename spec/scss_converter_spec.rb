@@ -18,7 +18,10 @@ describe(Jekyll::Converters::Scss) do
   end
   let(:css_output) do
     <<~CSS
-      body { font-family: Helvetica, sans-serif; font-color: fuschia; }
+      body {
+        font-family: Helvetica, sans-serif;
+        font-color: fuschia;
+      }
     CSS
   end
   let(:invalid_content) do
@@ -109,8 +112,8 @@ describe(Jekyll::Converters::Scss) do
         expect(verter.sass_configs[:style]).to eql(:compressed)
       end
 
-      it "defaults style to :compact" do
-        expect(verter.sass_configs[:style]).to eql(:compact)
+      it "defaults style to :expanded" do
+        expect(verter.sass_configs[:style]).to eql(:expanded)
       end
 
       it "at least contains :syntax and :load_paths keys" do
@@ -125,8 +128,7 @@ describe(Jekyll::Converters::Scss) do
     end
 
     it "includes the syntax error line in the syntax error message" do
-      error_message = 'Error: Invalid CSS after "body": expected 1 selector or at-rule, was "{"'
-      error_message = %r!\A#{error_message}\s+on line 2!
+      error_message = %r!Expected!i
       expect do
         converter.convert(invalid_content)
       end.to raise_error(Jekyll::Converters::Scss::SyntaxError, error_message)
@@ -198,9 +200,13 @@ describe(Jekyll::Converters::Scss) do
 
       it "brings in the grid partial" do
         site.process
-        expect(File.read(test_css_file)).to eql(
-          "a { color: #999999; }\n\n/*# sourceMappingURL=main.css.map */"
-        )
+        expect(File.read(test_css_file)).to eql(<<~CSS.chomp)
+          a {
+            color: #999999;
+          }
+
+          /*# sourceMappingURL=main.css.map */
+        CSS
       end
 
       context "with the sass_dir specified twice" do
@@ -339,7 +345,7 @@ describe(Jekyll::Converters::Scss) do
       make_site(
         "source"      => File.expand_path("pages-collection", __dir__),
         "sass"        => {
-          "style" => :compact,
+          "style" => :expanded,
         },
         "collections" => {
           "pages" => {
@@ -362,7 +368,7 @@ describe(Jekyll::Converters::Scss) do
       make_site(
         "source" => File.expand_path("[alpha]beta", __dir__),
         "sass"   => {
-          "style" => :compact,
+          "style" => :expanded,
         }
       )
     end
