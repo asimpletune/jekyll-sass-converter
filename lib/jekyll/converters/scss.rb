@@ -183,7 +183,6 @@ module Jekyll
       def sass_embedded_config(data)
         {
           :data                => data,
-          :file                => filename,
           :indented_syntax     => syntax == :sass,
           :include_paths       => sass_load_paths,
           :output_style        => sass_style,
